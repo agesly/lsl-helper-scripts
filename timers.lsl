@@ -14,11 +14,13 @@ create_timer(integer link, integer identifier, integer seconds)
     integer current_time = llGetUnixTime();
     if (seconds <= 0) {
         llMessageLinked(link, identifier, "timer_failed", "invalid duration");
+        return;
     }
     index = llListFindList(timer_identifiers, [identifier]);
     if (index != -1) {
         // identifier already registered
         llMessageLinked(link, identifier, "timer_failed", "identifier in use");
+        return;
     }
     timer_identifiers = [identifier] + timer_identifiers;
     timer_times = [current_time + seconds] + timer_times;
