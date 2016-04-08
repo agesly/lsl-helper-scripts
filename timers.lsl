@@ -1,3 +1,8 @@
+/*
+ * MULTIPLE AND INDEPENDENT TIMERS
+ * Author: Agesly Danzig (Agesly Resident)
+ */
+
 float inteval = 0.5;
 
 list timer_identifiers; // identifier of the timer
@@ -27,7 +32,9 @@ integer get_time_left(integer identifier) {
     integer current_time;
     integer time;
     integer index = llListFindList(timer_identifiers, [identifier]);
-    if (index == -1)
+    if (index == -1) {
+        return -1;
+    }
     current_time = llGetUnixTime();
     time = llList2Integer(timer_times, index);
     return time - current_time;
@@ -39,10 +46,13 @@ default
     {
         llSetTimerEvent(0.0);
     }
-    link_message(integer link_num, integer timer_id, string msg, key time)
+    link_message(integer link, integer timer_id, string msg, key time)
     {
         if (msg == "timer_new") {
-            create_timer(link_num, timer_id, (integer) ((string) time));
+            create_timer(link, timer_id, (integer) ((string) time));
+        } else
+        if (msg == "timer_check") {
+            llMessageLinked(link, timer_id, "timer_left", (string) get_time_left(timer_id));
         }
     }
     timer()
@@ -60,7 +70,7 @@ default
             if (time_left <= 0) {
                 identifier = llList2Integer(timer_identifiers, i);
                 link = llList2Integer(timer_links, i);
-                llMessageLinked(link, identifier, "timer_finished", (string) time_left);
+                llMessageLinked(link, identifier, "timer_finished", (string) (- time_left));
                 timer_identifiers = llDeleteSubList(timer_identifiers, i, i);
                 timer_times = llDeleteSubList(timer_times, i, i);
                 timer_links = llDeleteSubList(timer_links, i, i);
