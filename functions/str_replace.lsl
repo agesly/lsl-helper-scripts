@@ -4,3 +4,4 @@ string replace(string str, string find_substr, string replace_substr) {
 	string new_string = llDumpList2String(segments, replace_substr);
 	return new_string;
 }
+
