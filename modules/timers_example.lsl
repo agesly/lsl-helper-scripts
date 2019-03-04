@@ -5,11 +5,13 @@ default
     {
         llMessageLinked(LINK_THIS, 10, "timer_new", "my_timer_1");
         llMessageLinked(LINK_THIS, 5, "timer_new", "my_timer_2");
-        llMessageLinked(LINK_THIS, 15, "timer_new", "my_timer_3");
+        llMessageLinked(LINK_THIS, 20, "timer_new", "my_timer_3");
+        llMessageLinked(LINK_THIS, 15, "timer_new", "my_timer_4");
 
         llMessageLinked(LINK_THIS, 0, "timer_check", "my_timer_1");
         llMessageLinked(LINK_THIS, 0, "timer_check", "my_timer_2");
         llMessageLinked(LINK_THIS, 0, "timer_check", "my_timer_3");
+        llMessageLinked(LINK_THIS, 0, "timer_check", "my_timer_4");
     }
     link_message(integer sender_num, integer num, string msg, key id)
     {
