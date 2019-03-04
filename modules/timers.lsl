@@ -1,79 +1,68 @@
-/*
+/*--------------------------------------------------------------------------------*\
+    MULTIPLE AND INDEPENDENT TIMERS MODULE
 
-MULTIPLE AND INDEPENDENT TIMERS
+    Copyright (C) 2019  Agesly Danzig
 
-Copyright (C) 2019  Agesly Danzig
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; version 2 of the License.
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; version 2 of the License.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+------------------------------------------------------------------------------------
+    Special thanks to: Caraway Ohmai
+\*--------------------------------------------------------------------------------*/
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-*/
+list timer_queue;
 
-list timer_identifiers = []; // identifier of the timer
-list timer_times = []; // when the timer will trigger
-list timer_links = []; // which linked prim asked for the timer
-
-integer ERR_TIMER_LENGTH = 1;
-
-create_timer(integer link, key identifier, integer duration)
-{
-    integer index;
-
-    index = llListFindList(timer_identifiers, [identifier]);
+delete_timer(key identifier) {
+    integer index = llListFindList(timer_queue, [identifier]);
 
     if (~index) {
-        // identifier already registered
-        timer_identifiers = llDeleteSubList(timer_identifiers, 0, 0);
-        timer_times = llDeleteSubList(timer_times, 0, 0);
-        timer_links = llDeleteSubList(timer_links, 0, 0);
+        timer_queue = llDeleteSubList(timer_queue, index - 1, index + 1);
+        if (index == 1) {
+            if (llGetListLength(timer_queue)) {
+                integer time_left = llList2Integer(timer_queue, 0) - llGetUnixTime();
 
-        if (index == 0) {
-            if (llGetListLength(timer_times)) {
-                integer time_left = llList2Integer(timer_times, 0) - llGetUnixTime();
-                if (time_left > 0) {
-                    llSetTimerEvent(llList2Integer(timer_times, 0) - llGetUnixTime());
-                } else {
-                    llSetTimerEvent(0.01);
-                }
+                // Check if should have been triggered already
+                if (time_left > 0) llSetTimerEvent(time_left);
+                else llSetTimerEvent(0.01);
             } else {
                 llSetTimerEvent(0.0);
             }
         }
-        if (duration <= 0) { return; }
+    }
+}
+
+create_timer(integer link, key identifier, integer duration) {
+    if (~llListFindList(timer_queue, [identifier])) {
+        delete_timer(identifier); // delete if exists
     }
 
     if (duration <= 0) {
-        llMessageLinked(link, ERR_TIMER_LENGTH, "timer_failed", identifier);
-        return;
+        return; // ignore if zero timer
     }
 
     integer timer_time = llGetUnixTime() + duration;
-    integer list_length = llGetListLength(timer_times);
     integer other_time = timer_time;
-    
-    index = 0;
-    if (list_length) {
-        while (other_time <= timer_time && index < list_length) {
-            other_time = llList2Integer(timer_times, index);
-            if (other_time <= timer_time) index += 1;
-        }
+    if (llGetListLength(timer_queue)) {
+        other_time = llList2Integer(timer_queue, 0);
     }
-    
-    timer_identifiers = llListInsertList(timer_identifiers, [identifier], index);
-    timer_times = llListInsertList(timer_times, [timer_time], index);
-    timer_links = llListInsertList(timer_links, [link], index);
 
-    if (index == 0) {
+    timer_queue = [timer_time, identifier, link] + timer_queue;
+
+    if (other_time < timer_time) {
+        // there are other timers that should fire first
+        timer_queue = llListSort(timer_queue, 3, TRUE);
+    } else {
+        // no, this will be the next timer to fire
         llSetTimerEvent(duration);
     }
 
@@ -83,9 +72,9 @@ create_timer(integer link, key identifier, integer duration)
 // returns -1 or the time left in seconds
 integer get_time_left(key identifier) {
     integer time_left;
-    integer index = llListFindList(timer_identifiers, [identifier]);
+    integer index = llListFindList(timer_queue, [identifier]);
     if (~index) {
-        time_left = llList2Integer(timer_times, index) - llGetUnixTime();
+        time_left = llList2Integer(timer_queue, index - 1) - llGetUnixTime();
         return time_left;
     } 
     return -1;
@@ -93,38 +82,41 @@ integer get_time_left(key identifier) {
 
 default
 {
-    state_entry()
-    {
+    state_entry() {
         llSetTimerEvent(0.0);
     }
-    link_message(integer link, integer duration, string msg, key timer_id)
-    {
+
+    link_message(integer link, integer duration, string msg, key timer_id) {
         if (msg == "timer_new") {
             create_timer(link, timer_id, duration);
         } else
+        if (msg == "timer_del") {
+            delete_timer(timer_id);
+        } else 
         if (msg == "timer_check") {
             llMessageLinked(link, get_time_left(timer_id), "timer_left", timer_id);
         }
     }
-    timer()
-    {
-        integer num_timers = llGetListLength(timer_times);
+
+    timer() {
+        integer num_timers = llGetListLength(timer_queue) / 3;
         integer current_time = llGetUnixTime();
+
+        integer time_left = llList2Integer(timer_queue, 0) - current_time;
         key identifier;
         integer link;
-        integer time_left = llList2Integer(timer_times, 0) - current_time;
 
         do {
-            identifier = llList2Key(timer_identifiers, 0);
-            link = llList2Integer(timer_links, 0);
-            llMessageLinked(link, time_left, "timer_finished", identifier);
+            identifier = llList2Key(timer_queue, 1);
+            link = llList2Integer(timer_queue, 2);
 
-            timer_identifiers = llDeleteSubList(timer_identifiers, 0, 0);
-            timer_times = llDeleteSubList(timer_times, 0, 0);
-            timer_links = llDeleteSubList(timer_links, 0, 0);
+            llMessageLinked(link, -time_left, "timer_finished", identifier);
+            timer_queue = llDeleteSubList(timer_queue, 0, 2);
             num_timers -= 1;
 
-            if (num_timers > 0) time_left = llList2Integer(timer_times, 0) - current_time;
+            if (num_timers > 0) {
+                time_left = llList2Integer(timer_queue, 0) - current_time;
+            }
         } while (time_left <= 0 && num_timers > 0);
 
         if (num_timers > 0) {
