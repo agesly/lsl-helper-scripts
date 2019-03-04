@@ -1,16 +1,30 @@
 /*
- * MULTIPLE AND INDEPENDENT TIMERS
- * Author: Agesly Danzig (Agesly Resident)
- */
 
-float inteval = 0.5;
+MULTIPLE AND INDEPENDENT TIMERS
+
+Copyright (C) 2019  Agesly Danzig
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; version 2
+of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+*/
 
 list timer_identifiers = []; // identifier of the timer
 list timer_times = []; // when the timer will trigger
 list timer_links = []; // which linked prim asked for the timer
 
 integer ERR_TIMER_LENGTH = 1;
-integer ERR_TIMER_EXISTS = 2;
 
 create_timer(integer link, key identifier, integer duration)
 {
